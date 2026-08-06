@@ -551,7 +551,7 @@ void main(){
 
     // 顶部摆动幅度大, 根部固定
     float h = clamp(in_uv.y, 0.0, 1.0);
-    float sway = h*h * u_windStrength;
+    float sway = h*h * u_windStrength * 0.45;
     float ph = wp.x*0.16 + wp.z*0.21;
     wp.x += sin(u_time*1.35 + ph)*sway
           + sin(u_time*3.10 + ph*2.3)*sway*0.30;
