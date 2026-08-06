@@ -1,125 +1,173 @@
-# The Farwalk Hypothesis (远行假设)
+# SharpGLow
 
-> A single-player 3D open-world narrative demo built on a **from-scratch OpenGL engine** (Python + ModernGL). Gameplay borrows *a little* from Genshin Impact. Some models and textures are placeholders / AI-generated because no artist was available. Bug reports welcome. Details below.
-
----
-
-## 0. Overview
-
-**The Farwalk Hypothesis** is a technical showcase of procedural world generation, GPU skinning, and real-time NPR/PBR rendering:
-
-| Area | Description |
-|---|---|
-| **Engine** | Self-written Python + ModernGL engine: `math3d` (noise/vector/matrix), `mesh` (procedural geometry), `gltf` (binary glTF loader), `skin` (LBS binding), `renderer` (instancing/shadows/post), `shaders` (GLSL 330) |
-| **World** | 960×960 m continuous terrain, 6 regions with **hard boundaries (no blending)** — each region owns distinct height fields, albedo, fog, sky and render style |
-| **Characters** | 8-joint procedural skeleton, GPU **Linear Blend Skinning** (LBS) in a custom vertex shader (`u_bones[8]`), 4 runtime animations (idle / walk / run / glide) auto-switched by player/NPC state |
-| **Story** | 8-chapter main quest (146 dialogue nodes), collectible heart-shard system, world map, achievements, in-game journal |
-| **Portal system** | Each region has a portal that teleports to the next chapter's region and advances the main quest |
-| **Distribution** | Standalone Windows exe (no Python needed); source runs cross-platform |
-
-## 1. Rendering Pipeline
-
-```
-scene → [shadow pass 2048 depth] → [sky pass] → [terrain] → [instanced objects]
-     → [skinned meshes] → [foliage] → [water] → scene FBO
-     → post: bloom (separable gaussian) → composite (exposure/ACES/grading)
-     → FXAA → default framebuffer
-```
-
-- **Terrain**: 384×384 heightfield sampled from multi-octave FBM; region weights are **one-hot (argmax)** so biomes meet at hard cliffs instead of smooth blends. Split into 12×12 chunks with frustum culling.
-- **Shadows**: single 2048² directional shadow map, 3×3 PCF, slope-adaptive bias.
-- **Instancing**: buildings/foliage/collectibles rendered via `glDrawElementsInstanced` with per-instance 3×4 affine matrix + tint + emissive.
-- **Skinning**: per-vertex 2-joint weights (KNN from skeleton), CPU computes 8 pose matrices per frame → transposed to column-major → `uniform mat4 u_bones[8]` in the vertex shader.
-- **Lighting**: stylized mix — PBR (GGX + Smith + Schlick) blended toward cel (wrapped half-Lambert banding + rim light) by a per-region `u_style` factor.
-
-## 2. Procedural Content
-
-| Asset | Method |
-|---|---|
-| Terrain mesh / albedo / normal | FBM + ridged noise, region-albedo lerp |
-| Buildings (hut/tower/pillar/altar/ruin/portal/…) | Programmatic box/cylinder/ellipsoid assembly |
-| Textures | **Real image textures** sampled from baked PNG tiles (brick / stone / plank / slab) via world-space projection; see `assets/textures/` |
-| Foliage | Instanced grass blades with vertex wind sway + SSS backlight |
-| Characters | 7 NPCs + player rigged with the built-in 8-joint skeleton; `assets/models/<eid>.glb` overrides the procedural mesh when present |
-| Portrait art | 14 AI-generated character refs, rembg → transparent PNG in `assets/refs/` |
-
-## 3. Building & Running
-
-### 3.1 Dependencies
-
-- Python 3.13+, ModernGL, glfw, numpy, Pillow
-- OpenGL 3.3+ capable GPU
-
-### 3.2 From source
-
-```bash
-git clone <repo> && cd <repo>
-python -m venv .venv
-.venv/Scripts/pip install moderngl glfw numpy Pillow
-python run.py                    # default 1920x1080 high
-python run.py --medium | --low | --fullscreen | --size=1280x720
-```
-
-### 3.3 Standalone exe (Windows)
-
-Download `dist/远行假设.exe` (~100 MB). Double-click to play.
-
-### 3.4 Controls
-
-| Key | Action |
-|---|---|
-| WASD | Move |
-| LShift | Sprint |
-| Space | Jump / glide |
-| E | Interact |
-| Q | Echo scan |
-| C / M / Tab / J | Character / Map / Journal |
-| F5 / F11 | Save / fullscreen |
-| = / - | Mouse sensitivity |
-| Mouse | Direct camera mapping; wheel zooms |
-
-## 4. Project Layout
-
-```
-src/
-  data/     story data, NPCs, landmarks, achievements, version
-  engine/   math3d, mesh, gltf, skin, renderer, shaders, camera
-  game/     main loop, player, entities, story_state
-  ui/       HUD, text, panels, loading, menus, map
-  world/    terrain, scatter (24 object types)
-tools/      story_walk, smoke_test, packaging, push scripts
-assets/
-  models/   AI glb character models
-  textures/ baked tile textures (brick/stone/plank/slab)
-  refs/     AI portrait art + model previews
-docs/       architecture, build, rendering, GDD, story docs
-```
-
-## 5. Testing
-
-```bash
-python tools/story_walk.py                # logic-only full-play regression (no window)
-python tools/smoke_test.py --seconds=80   # headless e2e, saves 9 screenshots to tools/shots/
-```
-
-## 6. Known Limitations
-
-- Windows-tested only; other platforms untested
-- Cloud AI 3D quota: 5 generations/day; remaining characters pending
-- Texture tiles are baked once by `tools/gen_textures.py`; re-run to regenerate
-- Skinning is a simplified 8-joint rig — swap in a Mixamo/Blender rig for production animation
-
-## 7. Acknowledgements
-
-- Tencent Hunyuan3D — free character 3D generation API
-- ModernGL / GLFW — Python OpenGL bindings & windowing
+**SharpGLow** is the C# engine rewrite of *《远行假设》 (The Farwalk Hypothesis)* — an  
+open-world narrative game. The original Python / ModernGL engine has been fully ported  
+to **C# + OpenTK 4** on an **OpenGL 3.3 Core Profile**, with performance-oriented  
+improvements (instanced rendering, procedural scatter, region-based world generation).
 
 ---
 
-## Author
+## Overview
 
-**Noctilucere (芋泥P)**
+SharpGLow renders a 960 m × 960 m procedurally generated world split into six themed  
+regions with hard boundaries, a third-person player character, instanced grass / trees /  
+rocks, and a chapter-driven narrative state machine. The whole engine is a single  
+self-contained executable with no external asset files — all meshes and shaders are  
+generated at runtime.
 
-Independent music producer, illustrator & programmer. This is the playable demo of *The Farwalk Hypothesis* (formerly 人外论 · 谁).
+### Features
 
-> *Behind every question stands another question.*
+- **Procedural world** — Perlin/FBM noise heightfield (960 m, 2.5 m cells) with six  
+  regions selected by `argmax` region weights (no seamless blending, hard boundaries).
+- **Instanced rendering** — grass blades, trees and rocks are drawn in a few draw calls  
+  via a per-instance 4×4 model matrix + per-instance RGB tint (`Engine/Instanced.cs`).
+- **Procedural meshes** — capsule body, tapered grass blade, terrain heightfield, and a  
+  humanoid character, all generated in code (`World/MeshGen.cs`).
+- **Hemisphere lighting + exponential fog** — GLSL 330 shaders with sun direction, sky /  
+  ground ambient term, and distance fog (`Engine/Renderer.cs`).
+- **Third-person orbit camera** — mouse-look, scroll zoom, smoothed follow.
+- **Story state machine** — dialogue nodes, quest gates and chapter progression  
+  (`Game/Story.cs`, `Game/StoryState.cs`).
+
+---
+
+## Tech Stack
+
+| Concern     | Choice                                      |
+| ----------- | ------------------------------------------- |
+| Language    | C# 13 / .NET 9.0                            |
+| Window / GL | OpenTK 4.8.2 (OpenGL 3.3 core profile)      |
+| Shaders     | GLSL `#version 330 core`                    |
+| Noise       | Perlin / FBM (Fbm2 / Fbm3) in `Math3D`      |
+| Packaging   | Single-file self-contained `dotnet publish` |
+
+---
+
+## Project Structure
+
+```
+SharpGLow/
+  SharpGlow.sln
+  README.md
+  src/Farwalk/
+    Farwalk.csproj            # net9.0, OpenTK 4.8.2, Exe
+    Program.cs                # GameApp : GameWindow — main loop, input, HUD
+    Engine/
+      Math3D.cs               # Vec2/3/4, Mat4, Perlin noise (Fbm2/Fbm3), look_at, perspective
+      Renderer.cs             # Shader helper + terrain/object GLSL 330 shaders
+      Instanced.cs            # InstancedMesh — per-instance matrix + tint VAO
+    World/
+      Terrain.cs              # TerrainConfig (6 regions), WorldGen, Terrain (960 m)
+      MeshGen.cs              # procedural meshes: Capsule, GrassBlade, Character, Merge, Transform
+      Scatter.cs              # ScatterGen — samples ground, builds grass/tree/rock meshes
+    Game/
+      Camera.cs               # OrbitCamera (third-person, mouse + scroll)
+      Player.cs               # movement / sprint / jump
+      Story.cs                # StoryData — dialogue nodes + chapter list
+      StoryState.cs           # quest gates + chapter progression
+    UI/  Data/                # auxiliary UI / data helpers
+  dist/                       # published build output (single-file exe)
+  build_output/               # verified latest build (see note below)
+```
+
+---
+
+## Build
+
+Requirements: .NET 9 SDK (`dotnet --version` ≥ 9.0).
+
+From the repository root:
+
+```bash
+# Restore + build the Farwalk project
+dotnet build src/Farwalk/Farwalk.csproj -c Release
+
+# Publish a self-contained single-file executable for Windows x64
+dotnet publish src/Farwalk/Farwalk.csproj -c Release -r win-x64 --self-contained \
+  -p:PublishSingleFile=true \
+  -p:IncludeNativeLibrariesForSelfExtract=true \
+  -o dist
+```
+
+The published `dist/Farwalk.exe` is ~76 MB and needs **no installed .NET runtime** and  
+**no Python environment**.
+
+> Cross-platform note: the engine targets `win-x64` for the single-file build. To run on  
+> Linux/macOS, drop `-r win-x64` and `--self-contained` and run on a machine with the  
+> .NET 9 runtime + an OpenGL 3.3 capable driver.
+
+---
+
+## Run
+
+```bash
+# From the published output directory
+dist/Farwalk.exe
+```
+
+The window opens at **1920 × 1080** on an OpenGL 3.3 context. Press **Esc** to quit.
+
+---
+
+## World & Regions
+
+The terrain is a 960 m × 960 m heightfield (`TerrainConfig.SIZE = CELL * CELLS`,  
+`CELL = 2.5`, `CELLS = 384`). Six regions are placed around the map and selected by  
+`argmax` of Perlin-driven region weights:
+
+| Region       | Position (x, z) | Radius | Theme                              |
+| ------------ | --------------- | ------ | ---------------------------------- |
+| `wilds`      | (0, 60)         | 300    | Open wilds (grass / trees / rocks) |
+| `blackstone` | (-290, -230)    | 190    | Black stone                        |
+| `lostland`   | (300, -215)     | 200    | Lost land                          |
+| `silenthall` | (320, 265)      | 185    | Silent hall                        |
+| `mutezone`   | (-315, 275)     | 195    | Mute zone                          |
+| `mirror`     | (-20, -400)     | 165    | Mirror                             |
+
+Water level is `WATER_LEVEL = 2.2`; scatter sampling skips points below water and  
+steep slopes.
+
+---
+
+## Rendering Pipeline
+
+1. **Terrain** — one large indexed mesh uploaded once (`Terrain.Upload()`); drawn with the  
+   terrain shader (albedo from region weights, hemisphere lighting, fog).
+2. **Player** — a procedural humanoid capsule character mesh (`MeshGen.Character`),  
+   drawn with the object shader.
+3. **Scatter** — grass (2 variants × 4 blades), trees (trunk + cone) and rocks are packed  
+   into `InstancedMesh` objects and rendered in a handful of instanced draw calls  
+   (`ScatterWorld.DrawAll`). Each instance carries its own model matrix and tint, so a few  
+   thousand props cost only a few draw calls.
+4. **Camera / HUD** — `OrbitCamera` produces the view/projection matrices; the window title  
+   shows the current chapter and objective.
+
+All shaders are embedded as C# raw strings (`const string ... """`), so there are no  
+external `.glsl` files to ship.
+
+---
+
+## Porting Notes (Python ModernGL → C# OpenTK)
+
+The original engine (`renwai/`, Python + ModernGL) was fully re-implemented:
+
+| Module    | Python                             | SharpGLow (C#)                      |
+| --------- | ---------------------------------- | ----------------------------------- |
+| Math      | `math3d.py`                        | `Engine/Math3D.cs`                  |
+| Mesh      | `mesh.py`                          | `World/MeshGen.cs`                  |
+| Terrain   | `terrain.py`                       | `World/Terrain.cs`                  |
+| Renderer  | `renderer.py` + `shaders.py`       | `Engine/Renderer.cs` (GLSL inlined) |
+| Camera    | `camera.py`                        | `Game/Camera.cs`                    |
+| Player    | `player.py`                        | `Game/Player.cs`                    |
+| Story     | `data/story.py` + `story_state.py` | `Game/Story.cs` + `StoryState.cs`   |
+| Main loop | `game/main.py`                     | `Program.cs`                        |
+
+Optimizations added during the port: instanced scatter rendering, region-based world  
+generation, and a single-file self-contained publish.
+
+---
+
+## License & Author
+
+Game & engine by **Noctilucere (芋泥P)**. Open-sourced at  
+[Noctilucere/farwalk-hypothesis](https://github.com/Noctilucere/farwalk-hypothesis).
