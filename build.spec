@@ -37,6 +37,10 @@ if os.path.isdir(models_dir) and os.listdir(models_dir):
 refs_dir = os.path.join(ROOT, "assets", "refs")
 if os.path.isdir(refs_dir) and os.listdir(refs_dir):
     added_files.append((refs_dir, os.path.join("assets", "refs")))
+# 烘焙贴图 (assets/textures/atlas.png)
+tex_dir = os.path.join(ROOT, "assets", "textures")
+if os.path.isdir(tex_dir) and os.listdir(tex_dir):
+    added_files.append((tex_dir, os.path.join("assets", "textures")))
 # 源码作为数据目录, 运行时 sys._MEIPASS/src 可被 import
 added_files.append((os.path.join(ROOT, "src"), "src"))
 
