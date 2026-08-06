@@ -1,172 +1,125 @@
-# 《远行假设》 (The Farwalk Hypothesis)
+# The Farwalk Hypothesis (远行假设)
 
-> 一个自研 OpenGL 引擎的开放世界叙事 Demo。玩法参考了一点点《原神》，美术因为找不到人所以部分模型及贴图是占位符 / AI 生成。欢迎提交 Bug。其他说明在下面。
+> A single-player 3D open-world narrative demo built on a **from-scratch OpenGL engine** (Python + ModernGL). Gameplay borrows *a little* from Genshin Impact. Some models and textures are placeholders / AI-generated because no artist was available. Bug reports welcome. Details below.
 
 ---
 
-## 0. 主要介绍
+## 0. Overview
 
-《远行假设》是一款单人 3D 开放世界叙事游戏 Demo：
+**The Farwalk Hypothesis** is a technical showcase of procedural world generation, GPU skinning, and real-time NPR/PBR rendering:
 
-- **自研引擎**：Python + ModernGL，零外部模型与贴图资产，所有网格与几何均程序化生成，仅 `assets/models/` 中的角色模型由腾讯混元 3D（Hunyuan3D）云端生成。
-- **开放世界**：六个区域（无名荒原 · 黑石祭址 · 苔原 · 镜像湖 · 消音地带 · 无声殿）共用一张无缝大地图，地形由多层柏林噪声合成，昼夜与天气随区域氛围插值。
-- **骨架 + 动作**：每个角色模型绑定 8 关节程序化骨架（GPU LBS 蒙皮），支持 idle / walk / run / glide 四种程序化动画，按玩家/NPC 状态自动切换。
-- **剧情**：改编自原创小说《人外论》，8 章主线剧情、146 个对话节点、可收集心跳残片、世界地图、成就系统、手记（收集 / 所遇之人 / 此地之名 / 旅途成就）。
-- **传送门系统**：每个区域边缘设有传送门，进入即自动传送至下一章节区域，主线自动推进。
-- **跨平台**：Windows 原生 exe（无需 Python 环境），源码跨平台可运行。
-
-## 1. 玩法参考了一点点原神
-
-| 系统 | 说明 |
+| Area | Description |
 |---|---|
-| 探索 | 六个无缝区域、可攀爬、滑翔、传送门跨区 |
-| 体力 | 冲刺 / 游泳 / 攀爬消耗体力，体力耗尽会溺水 |
-| 跳跃 | 起跳空中可微调方向，落地有压扁反馈 |
-| 元素 | 回响（Q）—— 扫描附近交互物刻痕，扩散解谜线索 |
-| 收集 | 12 颗心跳残片散落于各区域，收集解锁剧情 |
-| 对话 | 与 NPC 交互播放对话，每个角色有独立闲聊台词 |
-| 地图 | M 键世界地图（金色小点标记未收集残片） |
-| 手记 | Tab/J 翻页，4 个 tab：心跳残片 / 所遇之人 / 此地之名 / 旅途成就 |
-| 成就 | 11 项成就：启程、回响、6/12 碎片、1/10 km、风中归来、六境同游、终焉共名 |
-| 篝火 | 篝火旁自动回血（场景装饰 × 玩法功能 × 氛围） |
-| 死亡 | 掉落世界或溺水 → 风带回安全点，HP 恢复 60% |
+| **Engine** | Self-written Python + ModernGL engine: `math3d` (noise/vector/matrix), `mesh` (procedural geometry), `gltf` (binary glTF loader), `skin` (LBS binding), `renderer` (instancing/shadows/post), `shaders` (GLSL 330) |
+| **World** | 960×960 m continuous terrain, 6 regions with **hard boundaries (no blending)** — each region owns distinct height fields, albedo, fog, sky and render style |
+| **Characters** | 8-joint procedural skeleton, GPU **Linear Blend Skinning** (LBS) in a custom vertex shader (`u_bones[8]`), 4 runtime animations (idle / walk / run / glide) auto-switched by player/NPC state |
+| **Story** | 8-chapter main quest (146 dialogue nodes), collectible heart-shard system, world map, achievements, in-game journal |
+| **Portal system** | Each region has a portal that teleports to the next chapter's region and advances the main quest |
+| **Distribution** | Standalone Windows exe (no Python needed); source runs cross-platform |
 
-## 2. 美术
+## 1. Rendering Pipeline
 
-> 因为找不到人，所以部分模型及贴图是 **占位符 / AI 生成**：
-
-- **占位符场景物件**：石碑 / 拱门 / 高柱 / 小屋 / 篝火 / 祭坛 / 路标 / 瞭望塔 / 石圈 等均为程序化拼装几何，配色随区域 tint 渐变。
-- **植被**：草 / 树 / 灌木 / 浮萍为程序化生成，UV 通道支持自研阴影 / 噪声细节。
-- **NPC 与玩家模型**：7 位角色 + 玩家由腾讯混元 3D（Hunyuan3D）云端生成 LowPoly 静态 glb，绑定程序化骨架做 idle / walk / run / glide 蒙皮动画。
-- **角色立绘**：14 张角色参考图由 ImageGen 生成，背景由 rembg 抠图为透明 PNG，作为档案收录于 `assets/refs/`。
-- **场景纹理**：未使用任何外部贴图。地表 / 水体 / 天空的细节全部由程序化噪声（FBM / vnoise）模拟，避免依赖美术资源。
-
-> 美术并非短板，而是"程序生成美学"的探索：所有视觉均来自代码与数学。如果你有更好的美术资源，欢迎 PR。
-
-## 3. 欢迎提交 Bug 🐞
-
-发现 Bug 或想提建议？**欢迎提 Issue / PR**：
-
-- 提交位置：本仓库 `Issues` / `Pull requests`
-- 复现步骤、平台（Win10/11）、显卡驱动、Python 版本（源码运行时）
-- 截图 / 录像 / smoke_test 日志
-- 控制台输出（运行 `python run.py` 时的 traceback）
-
-常用复现工具：
-
-```bash
-# 端到端冒烟测试（无窗口，60-90 秒走完全剧情）
-python tools/smoke_test.py --seconds=80 --quality=medium
-# 剧情逻辑回归（30 秒，纯逻辑，不开窗）
-python tools/story_walk.py
+```
+scene → [shadow pass 2048 depth] → [sky pass] → [terrain] → [instanced objects]
+     → [skinned meshes] → [foliage] → [water] → scene FBO
+     → post: bloom (separable gaussian) → composite (exposure/ACES/grading)
+     → FXAA → default framebuffer
 ```
 
-`smoke_test.py` 会截 9 张场景图到 `tools/shots/`，便于视觉回归。
+- **Terrain**: 384×384 heightfield sampled from multi-octave FBM; region weights are **one-hot (argmax)** so biomes meet at hard cliffs instead of smooth blends. Split into 12×12 chunks with frustum culling.
+- **Shadows**: single 2048² directional shadow map, 3×3 PCF, slope-adaptive bias.
+- **Instancing**: buildings/foliage/collectibles rendered via `glDrawElementsInstanced` with per-instance 3×4 affine matrix + tint + emissive.
+- **Skinning**: per-vertex 2-joint weights (KNN from skeleton), CPU computes 8 pose matrices per frame → transposed to column-major → `uniform mat4 u_bones[8]` in the vertex shader.
+- **Lighting**: stylized mix — PBR (GGX + Smith + Schlick) blended toward cel (wrapped half-Lambert banding + rim light) by a per-region `u_style` factor.
 
-## 4. 其他说明
+## 2. Procedural Content
 
-### 4.1 运行环境
-
-- **操作系统**：Windows 10 / 11（已验证）；源码理论上跨平台
-- **GPU**：现代 OpenGL 3.3 兼容显卡（已用 RTX 2060 / iGPU 验证）
-- **Python**：3.13.12（推荐）
-- **依赖**：`moderngl` `glfw` `numpy` `Pillow` 等（见 `build.spec` 隐藏导入）
-
-### 4.2 运行方式
-
-#### 一键运行（推荐，Windows）
-
-直接下载 `dist/远行假设.exe`（约 100 MB，含 7 个 AI 完整建模 + 14 张透明立绘），**无需安装 Python 环境**。双击即玩。
-
-可选参数：
-
-```bash
-.\远行假设.exe                  # 默认 1600x900 高画质
-.\远行假设.exe --medium         # 中画质
-.\远行假设.exe --low            # 低画质
-.\远行假设.exe --fullscreen     # 全屏启动
-.\远行假设.exe --size=1280x720  # 自定义窗口
-```
-
-游戏内快捷键：
-
-| 键 | 功能 |
+| Asset | Method |
 |---|---|
-| WASD | 移动 |
-| LShift | 冲刺 |
-| Space | 跳跃 / 滑翔 |
-| E | 交互 |
-| Q | 回响（解锁后） |
-| C | 角色界面 |
-| M | 世界地图 |
-| Tab/J | 手记 |
-| Esc | 暂停 |
-| F5 | 保存进度 |
-| F11 | 全屏切换 |
-| H | 关闭新手引导 |
-| = / - | 鼠标灵敏度 |
-| Ctrl | 快进对话 |
+| Terrain mesh / albedo / normal | FBM + ridged noise, region-albedo lerp |
+| Buildings (hut/tower/pillar/altar/ruin/portal/…) | Programmatic box/cylinder/ellipsoid assembly |
+| Textures | **Real image textures** sampled from baked PNG tiles (brick / stone / plank / slab) via world-space projection; see `assets/textures/` |
+| Foliage | Instanced grass blades with vertex wind sway + SSS backlight |
+| Characters | 7 NPCs + player rigged with the built-in 8-joint skeleton; `assets/models/<eid>.glb` overrides the procedural mesh when present |
+| Portrait art | 14 AI-generated character refs, rembg → transparent PNG in `assets/refs/` |
 
-鼠标：**上移** = 相机上移，**下移** = 相机下移，**左移** = 相机左移，**右移** = 相机右移（直接映射）。**滚轮** = 缩放视角距离。
+## 3. Building & Running
 
-#### 源码运行
+### 3.1 Dependencies
+
+- Python 3.13+, ModernGL, glfw, numpy, Pillow
+- OpenGL 3.3+ capable GPU
+
+### 3.2 From source
 
 ```bash
-git clone <repo>
-cd <repo>
+git clone <repo> && cd <repo>
 python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt   # 或见 build.spec 的 hiddenimports
-python run.py
+.venv/Scripts/pip install moderngl glfw numpy Pillow
+python run.py                    # default 1920x1080 high
+python run.py --medium | --low | --fullscreen | --size=1280x720
 ```
 
-### 4.3 项目结构
+### 3.3 Standalone exe (Windows)
+
+Download `dist/远行假设.exe` (~100 MB). Double-click to play.
+
+### 3.4 Controls
+
+| Key | Action |
+|---|---|
+| WASD | Move |
+| LShift | Sprint |
+| Space | Jump / glide |
+| E | Interact |
+| Q | Echo scan |
+| C / M / Tab / J | Character / Map / Journal |
+| F5 / F11 | Save / fullscreen |
+| = / - | Mouse sensitivity |
+| Mouse | Direct camera mapping; wheel zooms |
+
+## 4. Project Layout
 
 ```
 src/
-  data/        剧情与角色数据（剧情线、NPC、地标、成就、版本号）
-  engine/      自研引擎: math3d、mesh、gltf、skin、renderer、shaders
-  game/        游戏逻辑: main 主循环、player、entities、story_state
-  ui/          HUD: 文本 / 面板 / 加载动画 / 角色界面 / 世界地图 / 菜单
-  world/       地形 + 场景散布（scatter 含 24 类物件）
-tools/         剧情回归 + smoke_test + 打包脚本 + 截图
+  data/     story data, NPCs, landmarks, achievements, version
+  engine/   math3d, mesh, gltf, skin, renderer, shaders, camera
+  game/     main loop, player, entities, story_state
+  ui/       HUD, text, panels, loading, menus, map
+  world/    terrain, scatter (24 object types)
+tools/      story_walk, smoke_test, packaging, push scripts
 assets/
-  models/      glb 完整建模（assets/models/<eid>.glb 优先于程序化）
-  refs/        角色参考图 / AI 模型预览图
-  icon.ico     程序图标
-docs/          架构 / 构建 / 交付 / GDD / 渲染 / 剧情文档
+  models/   AI glb character models
+  textures/ baked tile textures (brick/stone/plank/slab)
+  refs/     AI portrait art + model previews
+docs/       architecture, build, rendering, GDD, story docs
 ```
 
-### 4.4 完整建模接入说明
+## 5. Testing
 
-游戏支持外部 AI 生成的 3D 模型自动接管程序化角色：
+```bash
+python tools/story_walk.py                # logic-only full-play regression (no window)
+python tools/smoke_test.py --seconds=80   # headless e2e, saves 9 screenshots to tools/shots/
+```
 
-1. 把 `<eid>.glb` 放入 `assets/models/`（eid 是 NPC 标识如 `hui/echo/puzzler`，或 `player.glb`）
-2. 重启游戏（首次运行会扫描并绑定骨架）
-3. 角色自动用 AI 模型 + 蒙皮动作（呼吸/摆臂/转头）替换程序化网格
+## 6. Known Limitations
 
-D 盘 `D:\Hunyuan3D2-tmp\` 已搭好本地 Hunyuan3D-2.0 推理环境（含 14 张角色参考图与脚本），可从腾讯开源仓库 `Tencent/Hunyuan3D-2` 拉权重批量生成剩余 7 个角色。
+- Windows-tested only; other platforms untested
+- Cloud AI 3D quota: 5 generations/day; remaining characters pending
+- Texture tiles are baked once by `tools/gen_textures.py`; re-run to regenerate
+- Skinning is a simplified 8-joint rig — swap in a Mixamo/Blender rig for production animation
 
-### 4.5 已知限制
+## 7. Acknowledgements
 
-- 仅 Windows 验证（源码未在 Linux / macOS 测试）
-- 云端生成的 AI 模型每日 5 次限额，剩余 7 个角色待补
-- 本地 Hunyuan3D-2 推理需 RTX 20 系及以上（6 GB 显存）或 CPU fallback
-- 未使用外部贴图：材质层次较单一，待后续用程序化纹理丰富
-
-### 4.6 致谢
-
-- **腾讯混元 3D（Hunyuan3D）**：免费提供角色 3D 生成 API
-- **腾讯云混元大模型**：提供参考图生成
-- **ModernGL**：简洁强大的 Python OpenGL 绑定
-- **GLFW**：跨平台窗口与输入
+- Tencent Hunyuan3D — free character 3D generation API
+- ModernGL / GLFW — Python OpenGL bindings & windowing
 
 ---
 
-## 作者
+## Author
 
-**Noctilucere（芋泥P）**
+**Noctilucere (芋泥P)**
 
-独立音乐制作人 & 插画师 / 程序员。
-本作是《远行假设》（原《人外论 · 谁》）的可游玩 Demo。
+Independent music producer, illustrator & programmer. This is the playable demo of *The Farwalk Hypothesis* (formerly 人外论 · 谁).
 
-> *每一个问题背后，都站着另一个问题。*
+> *Behind every question stands another question.*
