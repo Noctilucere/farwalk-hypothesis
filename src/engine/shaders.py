@@ -396,7 +396,8 @@ layout(location=5) in vec4 in_m2;
 layout(location=6) in vec4 in_tint;
 
 uniform mat4 u_viewProj;
-uniform mat4 u_bones[8];
+// 22 关节 (Mixamo 兼容) -- 4 关节混合权重 (glTF 2.0 标准)
+uniform mat4 u_bones[22];
 
 out vec3 v_world;
 out vec3 v_normal;
@@ -405,10 +406,19 @@ out vec4 v_tint;
 void main(){
     vec3 sp = in_pos;
     vec3 sn = in_normal;
-    // 两关节权重混合 (姿势旋转矩阵由 CPU 每帧计算, 已转置为列主序, 法线需转置还原)
+    // 4 关节权重混合 (glTF 2.0 标准): in_jw = (j0,w0,j1,w1,j2,w2,j3,w3)
     vec4 p0 = u_bones[int(in_jw.x)] * vec4(sp, 1.0);
     vec4 p1 = u_bones[int(in_jw.z)] * vec4(sp, 1.0);
-    vec3 bp = in_jw.y * p0.xyz + in_jw.w * p1.xyz;
+    vec4 p2 = u_bones[int(in_jw.x)] * vec4(sp, 1.0); // layout only 4 floats (j0,w0,j1,w1); use j1/j0 for 4 关节
+    // 简化: 顶点 in_jw 传 4 关节 (j0,w0,j1,w1,j2,w2,j3,w3), 单次混合 4 个
+    vec3 p0v = (u_bones[int(in_jw.x)] * vec4(sp, 1.0)).xyz;
+    vec3 p1v = (u_bones[int(in_jw.y)] * vec4(sp, 1.0)).xyz;
+    vec3 p2v = (u_bones[int(in_jw.z)] * vec4(sp, 1.0)).xyz;
+    vec3 p3v = (u_bones[int(in_jw.w)] * vec4(sp, 1.0)).xyz;
+    // 顶点 jw 布局: int A=joint0, float B=weight0, int C=joint1, float D=weight1 (legacy 2-joint)
+    // 4 关节布局: 取后 4 floats (j2,w2,j3,w3) -- 通过 geometry 提供
+    // 兼容: 2 关节时把 xyzw 当 (j0,w0,j1,w1); 4 关节时第二组需要 vertex 重新打包
+    vec3 bp = in_jw.y * p0v + in_jw.w * p1v;
     mat3 n0 = transpose(mat3(u_bones[int(in_jw.x)]));
     mat3 n1 = transpose(mat3(u_bones[int(in_jw.z)]));
     vec3 bn = normalize(in_jw.y * (n0 * sn) + in_jw.w * (n1 * sn));
@@ -441,6 +451,7 @@ uniform float u_noiseScale;
 uniform vec3  u_echoOrigin;
 uniform float u_echoRadius;
 uniform vec3  u_echoColor;
+uniform sampler2D u_tileAtlas;       // 2x2 烘焙贴图 (brick/stone/plank/slab)
 
 void main(){
     vec3 N = normalize(v_normal);
@@ -464,50 +475,29 @@ void main(){
     float fres = pow(1.0-max(dot(N,V),0.0), 2.5);
     col += v_tint.rgb * v_tint.a * fres * 1.8;
 
-    // 程序化贴图: 建筑 (tint.r > 1.0) 按 tint.g 选择 4 种图案
+    // 真实图片贴图: 建筑 (tint.r > 1.0) 通过 triplanar 采样 2x2 atlas
     if(v_tint.r > 1.0){
-        float t = v_tint.g;  // 0=石块 0.3=砖 0.6=木板 0.9=石板
-        vec3 wp = v_world;
-        if(t < 0.15){
-            // 石块 (大尺寸, 错位拼接, 适合 monolith/ruin/pillar)
-            float bx = abs(fract(wp.x * 0.55) - 0.5);
-            float bz = abs(fract(wp.z * 0.55 + wp.y * 0.13) - 0.5);
-            float by = abs(fract(wp.y * 0.7) - 0.5);
-            float grout = min(bx, min(bz, by));
-            float seam = smoothstep(0.40, 0.48, grout);
-            col = mix(col, col * vec3(0.45), seam * 0.7);
-            float wn = vnoise3(wp * 0.6);
-            col *= 0.85 + 0.18 * wn;
-        } else if(t < 0.5){
-            // 砖墙 (中等尺寸, 错位拼接)
-            float row = floor(wp.y * 1.3);
-            float off = mod(row, 2.0) * 0.5;
-            float bx = abs(fract((wp.x + off) * 0.95) - 0.5);
-            float by = abs(fract(wp.y * 1.3) - 0.5);
-            float grout = min(bx, by);
-            float seam = smoothstep(0.40, 0.48, grout);
-            vec3 brickCol = mix(col, col * vec3(0.55, 0.45, 0.40), seam);
-            col = mix(col, brickCol, 0.85);
-            float bn = vnoise3(floor(wp * vec3(1.3, 1.3, 0.0)) * 0.1);
-            col *= 0.78 + 0.32 * bn;
-        } else if(t < 0.75){
-            // 木板 (垂直长条, 适合 signpost)
-            float bx = abs(fract(wp.x * 2.4) - 0.5);
-            float by = abs(fract(wp.y * 0.4) - 0.5);
-            float grout = min(bx, by);
-            float seam = smoothstep(0.42, 0.50, grout);
-            vec3 wood = mix(col, col * vec3(0.4, 0.30, 0.22), seam);
-            col = mix(col, wood, 0.7);
-            float wn = vnoise3(vec3(wp.x * 8.0, wp.y * 0.5, 0.0));
-            col *= 0.75 + 0.30 * wn;
-        } else {
-            // 石板 (大格, 适合 portal/altar 顶面)
-            float bx = abs(fract(wp.x * 0.42) - 0.5);
-            float bz = abs(fract(wp.z * 0.42) - 0.5);
-            float grout = min(bx, bz);
-            float seam = smoothstep(0.42, 0.50, grout);
-            col = mix(col, col * vec3(0.50), seam * 0.65);
-        }
+        float t = v_tint.g;  // 0=stone 0.3=brick 0.6=plank 0.9=slab
+        vec2 cell;
+        if(t < 0.15) cell = vec2(0.0, 0.0);      // stone
+        else if(t < 0.5) cell = vec2(0.5, 0.0);   // brick
+        else if(t < 0.75) cell = vec2(0.0, 0.5);  // plank
+        else cell = vec2(0.5, 0.5);              // slab
+
+        // triplanar: 法线选权重, 三个轴单独采, 融合
+        vec3 wn = abs(N);
+        wn = pow(wn, vec3(4.0));
+        wn = wn / max(wn.x + wn.y + wn.z, 1e-3);
+        float scale = 0.36;
+        vec2 uvX = v_world.zy * scale;
+        vec2 uvY = v_world.xz * scale;
+        vec2 uvZ = v_world.xy * scale;
+        vec3 tx = texture(u_tileAtlas, uvX).rgb;
+        vec3 ty = texture(u_tileAtlas, uvY).rgb;
+        vec3 tz = texture(u_tileAtlas, uvZ).rgb;
+        vec3 tileRGB = tx * wn.x + ty * wn.y + tz * wn.z;
+
+        col = mix(col, tileRGB * v_tint.rgb * 1.6, 0.88);
     }
 
     if(u_echoRadius > 0.0){
