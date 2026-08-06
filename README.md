@@ -164,7 +164,7 @@ This project is published as **two separate packages**:
 
 | Package | Tag | Contents | Run |
 | --- | --- | --- | --- |
-| **The Farwalk Hypothesis — game + SharpGLow engine** | `v2.0.0` | Full game built on the new engine, plus `dist/Farwalk.exe` | Download `dist/Farwalk.exe`, double-click (no .NET / Python needed) |
+| **The Farwalk Hypothesis — game + SharpGLow engine** | `v2.1.0` | Full game built on the new engine, plus `dist/Farwalk.exe` | Download `dist/Farwalk.exe`, double-click (no .NET / Python needed) |
 | **SharpGLow engine (standalone)** | `sharpglow-v1.0.0` | Engine source under `src/Farwalk/` only — a reusable renderer / world / scatter / camera / story framework | `dotnet build src/Farwalk/Farwalk.csproj -c Release`, or embed the modules in your own project |
 
 Both packages are **non-destructive** updates: the legacy Python engine (`src/` Python,
