@@ -350,7 +350,7 @@ class EntityWorld:
         self.coll_mesh.upload(pack_instances(pos, rot, scl, tint, glow) if pos
                               else np.zeros((0, 16), F32))
 
-    def upload_player(self, pos, yaw, squash=1.0, lean=0.0, tint=(0.60, 0.55, 0.48),
+    def upload_player(self, pos, yaw, squash=1.0, lean=0.0, tint=(0.62, 0.50, 0.38),
                       anim="idle"):
         # 呼吸律动: 胸口微胀, 肩背微收 (与 NPC 一致的"活物"感)
         br = math.sin(self.time * 1.35) * 0.012
@@ -373,7 +373,7 @@ class EntityWorld:
         # glb NPC + 玩家使用蒙皮 shader, 需单独 prepare (共用 OBJECT_FS 但 VS 不同)
         if self.glb_npcs or self.player_skinned:
             if not shadow:
-                self.r.prepare_skin(roughness=0.78, metallic=0.0, noise_scale=0.0)
+                self.r.prepare_skin(roughness=0.78, metallic=0.0, noise_scale=0.35)
             for im, _e in self.glb_npcs:
                 im.render(shadow=shadow)
             self.player_mesh.render(shadow=shadow)
