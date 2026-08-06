@@ -370,9 +370,17 @@ class EntityWorld:
             self.r.prepare_object(roughness=0.68, metallic=0.02, noise_scale=0.0)
         for im, members, _h in self.npc_groups.values():
             im.render(shadow=shadow)
-        for im, _e in self.glb_npcs:
-            im.render(shadow=shadow)
-        self.player_mesh.render(shadow=shadow)
+        # glb NPC + 玩家使用蒙皮 shader, 需单独 prepare (共用 OBJECT_FS 但 VS 不同)
+        if self.glb_npcs or self.player_skinned:
+            if not shadow:
+                self.r.prepare_skin(roughness=0.78, metallic=0.0, noise_scale=0.0)
+            for im, _e in self.glb_npcs:
+                im.render(shadow=shadow)
+            self.player_mesh.render(shadow=shadow)
+        else:
+            for im, _e in self.glb_npcs:
+                im.render(shadow=shadow)
+            self.player_mesh.render(shadow=shadow)
 
         if not shadow:
             self.r.prepare_object(roughness=0.55, metallic=0.05, noise_scale=0.7)
