@@ -119,11 +119,10 @@ class HUD:
                      (0.72, 0.70, 0.66, 0.78), shadow=SHADOW)
 
         # 更新公告面板
-        self.ui.text(x + 4, y + 186 * s, f"v{ST.VERSION} · 更新公告", int(13 * s),
+        self.ui.text(x + 4, y + 186 * s, f"v{ST.VERSION} · SharpGLow 引擎", int(13 * s),
                      GOLD_DIM, shadow=SHADOW)
-        for k, ln in enumerate(ST.CHANGELOG[1:6]):
-            self.ui.text(x + 6, y + 212 * s + k * 21 * s, ln, int(13 * s),
-                         (0.66, 0.65, 0.63, 0.78), shadow=SHADOW)
+        self.ui.text(x + 6, y + 212 * s, "Noctilucere (芋泥P)", int(13 * s),
+                     (0.66, 0.65, 0.63, 0.78), shadow=SHADOW)
 
         # 菜单项 (面板化 + 当前项高亮)
         by = h * 0.54
