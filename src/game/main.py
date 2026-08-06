@@ -143,6 +143,8 @@ class Game:
         self.achievements = set()
         self._campfire_t = 0.0
         self._portal_cd = 0.0
+        self._portals_target = None
+        self._portals_region = None
         self._ach_km = 0.0
 
         # 输入
@@ -552,6 +554,8 @@ class Game:
                         break
             else:
                 self._portal_cd -= sdt
+            # 章节完成时: 在玩家当前区域生成下一章节传送门 (条件出现)
+            self._refresh_portals()
 
         self.entities.update(sdt, self.player.pos,
                              self.player.echo_radius, self.player.echo_origin)
@@ -722,6 +726,49 @@ class Game:
         cur = self.story.chapter_no()
         if cur < len(ST.QUESTS) - 1:
             self.story.begin(cur + 1)
+
+    def _refresh_portals(self):
+        """条件出现: 当玩家完成当前章节所有 quest step 后, 在玩家位置生成下一章节传送门。"""
+        # 当前章节所有 gate 都完成 + 还在游戏中
+        if self.story.finished:
+            return
+        cur_ch = self.story.chapter_no() - 1  # chapter_no 是 1-indexed
+        if cur_ch < 0 or cur_ch >= len(ST.QUESTS):
+            return
+        # 检查当前章节所有 gate 是否完成
+        from src.game.story_state import gate_order
+        gates = gate_order(ST.QUESTS[cur_ch]["id"])
+        if not gates:
+            return
+        if self.story.gate_i < len(gates):
+            return  # 章节未完成
+        # 检查当前传送门状态: 如果下一章节传送门未激活, 生成
+        cur_region = self._portals_region
+        if cur_region is None:
+            best, _ = self.terrain.region_at(self.player.pos[0], self.player.pos[2])
+            cur_region = best
+        # 下一章节区域
+        order = ("wilds", "blackstone", "lostland",
+                 "silenthall", "mutezone", "mirror")
+        if cur_region not in order:
+            return
+        idx = order.index(cur_region)
+        if idx >= len(order) - 1:
+            return  # 最后一章无传送门
+        nxt_region = order[idx + 1]
+        # 在玩家附近生成一个传送门 instance
+        if self._portals_target == nxt_region:
+            return  # 已生成
+        # 玩家位置附近找一个放置传送门
+        import math as _m
+        ang = self.story.time if hasattr(self.story, "time") else 0.0
+        # 简单偏移: 在玩家前方 6m
+        fx = self.player.pos[0] - _m.sin(self.player.yaw) * 6.0
+        fz = self.player.pos[2] - _m.cos(self.player.yaw) * 6.0
+        self.scatter.rebuild_portals([(cur_region, fx, fz, nxt_region)])
+        self._portals_target = nxt_region
+        self._portals_region = cur_region
+        self.story.show_toast("一座传送门在远方浮现……", 2.0)
 
     def _input_pause(self):
         if self.pressed(glfw.KEY_UP, glfw.KEY_W):
