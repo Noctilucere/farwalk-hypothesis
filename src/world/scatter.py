@@ -380,9 +380,16 @@ class Scatter:
                 sc = rng.uniform(0.85, 1.35, n).astype(F32)
                 glow = np.zeros(n, F32)
                 # 建筑类: tint.r = 1.05 标记 shader 启用程序化贴图
-                if name in ("ruin", "arch", "pillar", "hut", "altar",
-                            "signpost", "tower", "stonecircle", "portal"):
+                # tint.g 编码贴图类型: 0.0=石块 0.3=砖 0.6=木板 0.9=石板
+                if name in ("ruin", "pillar", "altar", "monolith", "stonecircle"):
                     tint[:, 0] = 1.05
+                    tint[:, 1] = 0.0    # 石块
+                elif name in ("hut", "tower", "arch", "signpost"):
+                    tint[:, 0] = 1.05
+                    tint[:, 1] = 0.3    # 砖
+                elif name == "portal":
+                    tint[:, 0] = 1.05
+                    tint[:, 1] = 0.9    # 石板
                 if name == "hut":
                     glow = np.full(n, 0.55, F32)     # 顶光石
                 elif name == "pillar":
