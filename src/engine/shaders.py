@@ -464,13 +464,50 @@ void main(){
     float fres = pow(1.0-max(dot(N,V),0.0), 2.5);
     col += v_tint.rgb * v_tint.a * fres * 1.8;
 
-    // 程序化贴图: 建筑 (tint.r > 1.0) 应用暗色缝
+    // 程序化贴图: 建筑 (tint.r > 1.0) 按 tint.g 选择 4 种图案
     if(v_tint.r > 1.0){
-        float sx = abs(fract(v_world.x * 0.9) - 0.5);
-        float sy = abs(fract(v_world.z * 1.2) - 0.5);
-        float grout = min(sx, sy);
-        float seam = smoothstep(0.42, 0.50, grout);
-        col = mix(col, col * vec3(0.5, 0.5, 0.5), seam * 0.5);
+        float t = v_tint.g;  // 0=石块 0.3=砖 0.6=木板 0.9=石板
+        vec3 wp = v_world;
+        if(t < 0.15){
+            // 石块 (大尺寸, 错位拼接, 适合 monolith/ruin/pillar)
+            float bx = abs(fract(wp.x * 0.55) - 0.5);
+            float bz = abs(fract(wp.z * 0.55 + wp.y * 0.13) - 0.5);
+            float by = abs(fract(wp.y * 0.7) - 0.5);
+            float grout = min(bx, min(bz, by));
+            float seam = smoothstep(0.40, 0.48, grout);
+            col = mix(col, col * vec3(0.45), seam * 0.7);
+            float wn = vnoise3(wp * 0.6);
+            col *= 0.85 + 0.18 * wn;
+        } else if(t < 0.5){
+            // 砖墙 (中等尺寸, 错位拼接)
+            float row = floor(wp.y * 1.3);
+            float off = mod(row, 2.0) * 0.5;
+            float bx = abs(fract((wp.x + off) * 0.95) - 0.5);
+            float by = abs(fract(wp.y * 1.3) - 0.5);
+            float grout = min(bx, by);
+            float seam = smoothstep(0.40, 0.48, grout);
+            vec3 brickCol = mix(col, col * vec3(0.55, 0.45, 0.40), seam);
+            col = mix(col, brickCol, 0.85);
+            float bn = vnoise3(floor(wp * vec3(1.3, 1.3, 0.0)) * 0.1);
+            col *= 0.78 + 0.32 * bn;
+        } else if(t < 0.75){
+            // 木板 (垂直长条, 适合 signpost)
+            float bx = abs(fract(wp.x * 2.4) - 0.5);
+            float by = abs(fract(wp.y * 0.4) - 0.5);
+            float grout = min(bx, by);
+            float seam = smoothstep(0.42, 0.50, grout);
+            vec3 wood = mix(col, col * vec3(0.4, 0.30, 0.22), seam);
+            col = mix(col, wood, 0.7);
+            float wn = vnoise3(vec3(wp.x * 8.0, wp.y * 0.5, 0.0));
+            col *= 0.75 + 0.30 * wn;
+        } else {
+            // 石板 (大格, 适合 portal/altar 顶面)
+            float bx = abs(fract(wp.x * 0.42) - 0.5);
+            float bz = abs(fract(wp.z * 0.42) - 0.5);
+            float grout = min(bx, bz);
+            float seam = smoothstep(0.42, 0.50, grout);
+            col = mix(col, col * vec3(0.50), seam * 0.65);
+        }
     }
 
     if(u_echoRadius > 0.0){
