@@ -9,6 +9,8 @@ renderer.py -- HDR 前向渲染器
 """
 from __future__ import annotations
 
+import os
+import sys
 import numpy as np
 
 from . import math3d as m3
@@ -84,6 +86,9 @@ class Renderer:
         self.water_deep = (0.03, 0.09, 0.14)
         self.wind = 0.055
 
+        # 烘焙贴图 atlas (2x2: brick/stone/plank/slab)
+        self.tile_tex = self._load_tile_atlas()
+
         # 剧情用后处理
         self.fade_amount = 0.0
         self.fade_color = (0.0, 0.0, 0.0)
@@ -97,6 +102,25 @@ class Renderer:
 
         self.frame_id = 0
         self._common_stamp = {}
+
+    def _load_tile_atlas(self):
+        """加载 2x2 烘焙贴图 (brick/stone/plank/slab)。"""
+        import os
+        base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))))
+        path = os.path.join(base, "assets", "textures", "atlas.png")
+        if not os.path.isfile(path):
+            return None
+        try:
+            from PIL import Image
+            im = Image.open(path).convert("RGB")
+            tex = self.ctx.texture(im.size, 3, im.tobytes())
+            tex.filter = (self.ctx.LINEAR_MIPMAP_LINEAR, self.ctx.LINEAR)
+            tex.build_mipmaps()
+            tex.repeat_x = tex.repeat_y = True
+            return tex
+        except Exception:
+            return None
 
     # ------------------------------------------------------------------
     def _compile(self):
@@ -200,6 +224,10 @@ class Renderer:
         setu(prog, "u_echoColor", self.echo_color)
         setm(prog, "u_viewProj", self.view_proj)
         setm(prog, "u_lightVP", self.light_vp)
+        # 烘焙贴图: 2x2 atlas, 4 个 0.0-0.5 区间
+        if self.tile_tex is not None:
+            self.tile_tex.use(1)
+            setu(prog, "u_tileAtlas", 1)
 
     # ------------------------------------------------------------------
     # 阴影
@@ -510,10 +538,11 @@ class SkinnedMesh:
             self.inst.write(data.tobytes())
 
     def set_bones(self, matrices):
-        """matrices: (8,4,4) 骨骼矩阵 (numpy 行主序), 转置为 GLSL mat4 列主序写入。"""
+        """matrices: (J,4,4) 浮点骨骼矩阵 (numpy 行主序), 转置为 GLSL mat4 列主序写入。
+
+        兼容 22 关节骨架 (Mixamo 标准)。"""
         mats = np.asarray(matrices, F32).reshape(-1, 4, 4)
-        # 列主序: 每 4x4 转置
-        m = np.zeros((8, 4, 4), F32)
+        m = np.zeros((22, 4, 4), F32)
         m[:len(mats)] = mats.transpose(0, 2, 1)
         self.vao.program["u_bones"].write(np.ascontiguousarray(m, F32).tobytes())
 
