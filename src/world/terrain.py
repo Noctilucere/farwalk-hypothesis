@@ -65,7 +65,7 @@ REGION_MOOD = {
         fog_sun_color=(0.78, 0.75, 0.70), fog_density=0.0046, fog_height=0.020,
         sky_zenith=(0.20, 0.36, 0.64), sky_horizon=(0.78, 0.80, 0.80),
         ground=(0.20, 0.18, 0.14), stars=0.0, clouds=0.62,
-        saturation=0.90, lift=(0.006, 0.005, 0.002), gain=(1.02, 1.00, 0.96),
+        saturation=1.06, lift=(0.006, 0.005, 0.002), gain=(1.04, 1.02, 0.98),
         outline=0.55, bloom=0.48, vignette=0.48, grain=0.020, wind=0.062,
         water=(0.22, 0.40, 0.44), water_deep=(0.03, 0.08, 0.11),
     ),
@@ -150,19 +150,25 @@ class WorldGen:
 
     # ---- 区域权重场 ----
     def region_weights(self, X, Z):
-        ws = {}
-        total = np.zeros_like(X)
+        """区域硬切: 每点只归属权重最大的一个区域 (one-hot), 完全不缝合。
+
+        边界处两个区域的地貌/高度直接切换, 形成自然断崖, 不再平滑渐变。
+        """
+        raw = {}
         for name in REGION_ORDER:
             cx, cz = REGION_POS[name]
             rad = REGION_RADIUS[name]
             d = np.sqrt((X - cx) ** 2 + (Z - cz) ** 2)
             w = 1.0 - np.clip(d / (rad * 1.55), 0.0, 1.0)
             w = w * w * (3.0 - 2.0 * w)
-            w = w ** 1.7 + 1e-4
-            ws[name] = w
-            total = total + w
-        for name in REGION_ORDER:
-            ws[name] = ws[name] / total
+            raw[name] = w
+        # argmax: 每点取最大权重的区域, one-hot
+        names = np.array(REGION_ORDER)
+        stack = np.stack([raw[n] for n in REGION_ORDER], 0)   # (R, N)
+        idx = stack.argmax(0)
+        ws = {}
+        for i, name in enumerate(REGION_ORDER):
+            ws[name] = (idx == i).astype(F32)
         return ws
 
     # ---- 高度场 ----
