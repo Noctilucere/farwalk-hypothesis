@@ -136,8 +136,11 @@ class EntityWorld:
             return np.array([cx, y, cz], F32)
         return np.array([best[0], best[1], best[2]], F32)
 
-    def _place(self):
+    def _place(self, region=None):
+        """放置实体; region=None 放置全部 (init), region=str 只放该 region。"""
         for eid, d in ST.NPCS.items():
+            if region is not None and d["region"] != region:
+                continue
             reg = d["region"]
             if eid in FIXED:
                 _, rr, aa = FIXED[eid]
@@ -149,6 +152,8 @@ class EntityWorld:
             self.npcs[eid] = Entity(eid, "npc", d, p, yaw, 3.4, d.get("form", "biped"))
 
         for eid, d in ST.INTERACTABLES.items():
+            if region is not None and d["region"] != region:
+                continue
             reg = d["region"]
             if eid in FIXED:
                 _, rr, aa = FIXED[eid]
@@ -159,11 +164,22 @@ class EntityWorld:
                                       _hash01(eid, 3) * math.tau, 3.2, d.get("kind"))
 
         for eid, d in ST.COLLECTIBLES.items():
+            if region is not None and d["region"] != region:
+                continue
             reg = d["region"]
             p = self._spot(eid, reg, max_slope=0.55)
             p = p.copy()
             p[1] += 1.25
             self.colls[eid] = Entity(eid, "coll", d, p, 0.0, 2.6)
+
+    def reload_region(self, region):
+        """传送门切换: 清空所有实体, 重新放置新 region 的实体。地图分开语义。"""
+        self.npcs.clear()
+        self.inters.clear()
+        self.colls.clear()
+        self._place(region=region)
+        # 重建 mesh 组 (含 GLB 角色)
+        self._build_meshes()
 
     # ------------------------------------------------------------------
     # 网格
