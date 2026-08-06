@@ -426,7 +426,9 @@ def grass_clump(blades=3, seed=0, height=1.0, width=0.09):
     rng = np.random.default_rng(seed)
     vs, ids, off = [], [], 0
     for b in range(blades):
-        v, i = grass_blade(4, height * rng.uniform(0.7, 1.25), width, rng.uniform(0.15, 0.55))
+        # 减小弯曲: 0.08-0.18, 草更直立, 不再横躺
+        v, i = grass_blade(4, height * rng.uniform(0.7, 1.25), width,
+                           rng.uniform(0.08, 0.18))
         ang = rng.uniform(0, math.pi)
         c, s = math.cos(ang), math.sin(ang)
         R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]], F32)
