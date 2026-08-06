@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+dist/
+*.spec.tmp
+
+# 截图 / 产物
+tools/shots/
+*.zip
+
+# 角色模型预览图 (AI 生成图片, 仅立绘 PNG 入仓库)
+assets/refs/*_model.png
+assets/refs/*_preview.png
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
