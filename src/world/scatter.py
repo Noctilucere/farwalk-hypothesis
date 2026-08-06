@@ -379,6 +379,10 @@ class Scatter:
                 tint = np.tile(base[None, :], (n, 1)) * rng.uniform(0.85, 1.15, (n, 1)).astype(F32)
                 sc = rng.uniform(0.85, 1.35, n).astype(F32)
                 glow = np.zeros(n, F32)
+                # 建筑类: tint.r = 1.05 标记 shader 启用程序化贴图
+                if name in ("ruin", "arch", "pillar", "hut", "altar",
+                            "signpost", "tower", "stonecircle", "portal"):
+                    tint[:, 0] = 1.05
                 if name == "hut":
                     glow = np.full(n, 0.55, F32)     # 顶光石
                 elif name == "pillar":
@@ -386,6 +390,7 @@ class Scatter:
                 elif name == "campfire":
                     glow = np.full(n, 1.0, F32)      # 火焰
                     tint = tint * 0.9
+                    tint[:, 0] = 0.0               # 篝火不用建筑贴图
                 elif name == "altar":
                     glow = np.full(n, 0.65, F32)     # 祭坛光石
                 elif name == "tower":
