@@ -23,8 +23,8 @@ class OrbitCamera:
         self.target = m3.vec3(0, 2, 0)
         self.yaw = 0.0
         self.pitch = 0.18
-        self.distance = 6.2
-        self.base_distance = 6.2
+        self.distance = 5.2
+        self.base_distance = 5.2
         self.fov = fov
         self.base_fov = fov
         self.height_offset = 1.55
