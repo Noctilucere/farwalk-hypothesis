@@ -361,9 +361,7 @@ class Scatter:
              ("lostland", 6), ("mutezone", 4)),
             (MSH.stonecircle, "stonecircle", ("blackstone", 6), ("wilds", 6),
              ("lostland", 5), ("silenthall", 5), ("mirror", 3)),
-            # 传送门: 每区域 1 个, 通向下一章节
-            (MSH.portal, "portal", ("wilds", 1), ("blackstone", 1), ("lostland", 1),
-             ("silenthall", 1), ("mutezone", 1), ("mirror", 1)),
+            # 传送门: 不在散置列表中, 由 main 根据剧情各章节完成状态动态生成 (条件出现)
         ]
         for fn, name, *regions in plan:
             v, i = fn(seed=abs(hash(name)) % 99991)
@@ -411,6 +409,45 @@ class Scatter:
             if chunks:
                 self._add_group(v, i, np.concatenate(chunks, 0), 420.0, noise=0.7,
                                 roughness=0.9, tag=name)
+
+    # ------------------------------------------------------------------
+    # 传送门: 条件出现 (达到剧情条件才散置)
+    # ------------------------------------------------------------------
+    def build_portals(self, portals):
+        """portals: list of (region, x, z, glow_target) 或 None 列表。
+
+        None = 跳过该槽; 有效槽生成一个 portal 实例。
+        """
+        v, i = MSH.portal(seed=99991, scale=1.0)
+        chunks = []
+        for entry in portals:
+            if entry is None:
+                continue
+            region, px, pz, _target = entry
+            tint = np.asarray([[1.05, 0.9, 0.78, 1.3]], F32)  # 石板 + 强发光
+            chunks.append(pack_instances(
+                np.array([[px, 0.0, pz]], F32),
+                np.array([0.0], F32),
+                np.array([(1.0, 1.0, 1.0)], F32),
+                tint, np.array([1.3], F32)))
+        if chunks:
+            self._add_group(v, i, np.concatenate(chunks, 0), 600.0, noise=0.5,
+                            roughness=0.78, tag="portal")
+
+    def clear_tag(self, tag):
+        """移除指定 tag 的散置 (用于传送门重新生成)。"""
+        for g in self.groups:
+            if g.get("tag") == tag:
+                try:
+                    g["mesh"].release()
+                except Exception:
+                    pass
+        self.groups = [g for g in self.groups if g.get("tag") != tag]
+
+    def rebuild_portals(self, portals):
+        """重置 portal tag 后重新生成。"""
+        self.clear_tag("portal")
+        self.build_portals(portals)
 
     # ------------------------------------------------------------------
     # 每帧裁剪 + 上传
