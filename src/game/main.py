@@ -139,6 +139,7 @@ class Game:
         self._fps_n = 0
         self.show_guide = False
         self.guide_t = 0.0
+        self.guide_line = False
         self.achievements = set()
         self._campfire_t = 0.0
         self._portal_cd = 0.0
@@ -664,6 +665,8 @@ class Game:
             self._toggle_fullscreen()
         if self.pressed(glfw.KEY_H) and self.show_guide:
             self.show_guide = False
+        if self.pressed(glfw.KEY_Y):
+            self.guide_line = not self.guide_line
         if self.pressed(glfw.KEY_EQUAL):  # = 调高鼠标灵敏度
             self.cam.sensitivity = min(0.010, self.cam.sensitivity + 0.0004)
             self.story.show_toast(f"鼠标灵敏度 {self.cam.sensitivity:.4f}（= / - 调节）", 1.6)
@@ -702,6 +705,8 @@ class Game:
         self.cam.snap(self.player.pos)
         self.banner_region = region
         self.banner_t = 0.0
+        # 地图分开: 重新加载该区域的实体 (远 region 清空)
+        self.entities.reload_region(region)
         self.story.show_toast(f"已传送至 {ST.REGIONS[region]['name']}", 2.4)
 
     def _warp_to_next_chapter(self, current_region):
@@ -882,6 +887,9 @@ class Game:
                 kind, tpos = self._objective_pos()
                 reg = ST.REGIONS.get(getattr(self, "_region", "wilds"), {}).get("name")
                 hud.compass(self.cam.yaw, self.player.pos, tpos, reg)
+                if self.guide_line:
+                    hud.guide_arrow(self.cam.yaw, self.cam.pitch,
+                                    self.player.pos, tpos)
                 hud.health(self.player)
                 hud.stamina(self.player)
                 hud.echo_hint(self.player)
