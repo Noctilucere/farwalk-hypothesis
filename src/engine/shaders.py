@@ -405,12 +405,12 @@ out vec4 v_tint;
 void main(){
     vec3 sp = in_pos;
     vec3 sn = in_normal;
-    // 两关节权重混合 (姿势旋转矩阵由 CPU 每帧计算)
+    // 两关节权重混合 (姿势旋转矩阵由 CPU 每帧计算, 已转置为列主序, 法线需转置还原)
     vec4 p0 = u_bones[int(in_jw.x)] * vec4(sp, 1.0);
     vec4 p1 = u_bones[int(in_jw.z)] * vec4(sp, 1.0);
     vec3 bp = in_jw.y * p0.xyz + in_jw.w * p1.xyz;
-    mat3 n0 = mat3(u_bones[int(in_jw.x)]);
-    mat3 n1 = mat3(u_bones[int(in_jw.z)]);
+    mat3 n0 = transpose(mat3(u_bones[int(in_jw.x)]));
+    mat3 n1 = transpose(mat3(u_bones[int(in_jw.z)]));
     vec3 bn = normalize(in_jw.y * (n0 * sn) + in_jw.w * (n1 * sn));
     if (length(bn) < 0.5) bn = sn;
 
@@ -463,6 +463,15 @@ void main(){
     // 自发光物体的菲涅尔外扩, 增强"发光体"观感
     float fres = pow(1.0-max(dot(N,V),0.0), 2.5);
     col += v_tint.rgb * v_tint.a * fres * 1.8;
+
+    // 程序化贴图: 建筑 (tint.r > 1.0) 应用暗色缝
+    if(v_tint.r > 1.0){
+        float sx = abs(fract(v_world.x * 0.9) - 0.5);
+        float sy = abs(fract(v_world.z * 1.2) - 0.5);
+        float grout = min(sx, sy);
+        float seam = smoothstep(0.42, 0.50, grout);
+        col = mix(col, col * vec3(0.5, 0.5, 0.5), seam * 0.5);
+    }
 
     if(u_echoRadius > 0.0){
         float d = distance(v_world.xz, u_echoOrigin.xz);
