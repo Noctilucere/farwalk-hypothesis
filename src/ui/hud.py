@@ -380,6 +380,40 @@ class HUD:
         self.ui.quad(x + 18 * s, y + hgt - 10 * s, wdt - 36 * s, 2 * s, (1, 1, 1, 0.10))
         self.ui.quad(x + 18 * s, y + hgt - 10 * s, (wdt - 36 * s) * p, 2 * s, GOLD_DIM)
 
+    def guide_arrow(self, cam_yaw, cam_pitch, player_pos, target_pos):
+        """屏幕边缘箭头: 指向当前任务目标 (按 Y 切换)"""
+        s, w, h = self.s, self.w, self.h
+        if target_pos is None:
+            return
+        dx = float(target_pos[0]) - float(player_pos[0])
+        dz = float(target_pos[2]) - float(player_pos[2])
+        dist = math.hypot(dx, dz)
+        ang = math.atan2(dx, dz)
+        rel = (ang - cam_yaw + math.pi) % math.tau - math.pi
+        # 在屏幕底部居中绘制弧形罗盘指示
+        cx, cy = w * 0.5, h - 100 * s
+        self.ui.circle(cx, cy, 44 * s, (0, 0, 0, 0.55), 40)
+        self.ui.ring(cx, cy, 40 * s, 44 * s, (0.85, 0.72, 0.42, 0.85), 40)
+        # 北/南/东/西标
+        for a, lab in ((0, "南"), (math.pi * 0.5, "西"), (math.pi, "北"),
+                       (-math.pi * 0.5, "东")):
+            rx = cx + math.sin(a + cam_yaw) * 36 * s
+            ry = cy - math.cos(a + cam_yaw) * 36 * s
+            self.ui.text(rx, ry, lab, int(11 * s), (0.78, 0.74, 0.66, 0.75),
+                         align="center")
+        # 目标箭头 (旋转到 rel 方向)
+        ax = cx + math.sin(cam_yaw + rel) * 30 * s
+        ay = cy - math.cos(cam_yaw + rel) * 30 * s
+        self.ui.tri((ax + 8 * s, ay - 5 * s), (ax - 8 * s, ay - 5 * s),
+                    (ax, ay + 10 * s), GOLD)
+        # 距离文字
+        km = dist / 100.0
+        label = f"{km:.0f} 米" if km < 100 else f"{km/1000:.2f} 公里"
+        self.ui.text(cx, cy + 56 * s, label, int(15 * s), (0.95, 0.88, 0.70, 0.92),
+                     align="center", shadow=SHADOW)
+        self.ui.text(cx, cy - 62 * s, "Y 关闭", int(11 * s), (0.66, 0.62, 0.56, 0.7),
+                     align="center")
+
     def compass(self, cam_yaw, player_pos, target_pos, region_name=None):
         s, w = self.s, self.w
         cw = min(560 * s, w * 0.5)
