@@ -500,10 +500,12 @@ class SkinnedMesh:
             self.inst.write(data.tobytes())
 
     def set_bones(self, matrices):
-        """matrices: (8,4,4) 浮点骨骼矩阵, 写入 uniform u_bones。"""
+        """matrices: (8,4,4) 骨骼矩阵 (numpy 行主序), 转置为 GLSL mat4 列主序写入。"""
+        mats = np.asarray(matrices, F32).reshape(-1, 4, 4)
+        # 列主序: 每 4x4 转置
         m = np.zeros((8, 4, 4), F32)
-        m[:len(matrices)] = np.asarray(matrices, F32).reshape(len(matrices), 4, 4)
-        self.vao.program["u_bones"].write(m.astype(F32).tobytes())
+        m[:len(mats)] = mats.transpose(0, 2, 1)
+        self.vao.program["u_bones"].write(np.ascontiguousarray(m, F32).tobytes())
 
     def render(self, shadow=False):
         if self.count <= 0:
