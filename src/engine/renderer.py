@@ -271,6 +271,16 @@ class Renderer:
         setu(p, "u_shadowMap", 0)
         setu(p, "u_windStrength", self.wind)
         self._apply_common(p)
+
+    def prepare_skin(self, roughness=0.78, metallic=0.0, noise_scale=0.0):
+        p = self.p_skin
+        setu(p, "u_shadowMap", 0)
+        setu(p, "u_roughness", roughness)
+        setu(p, "u_metallic", metallic)
+        setu(p, "u_noiseScale", noise_scale)
+        self._apply_common(p)
+        self.ctx.enable(self.ctx.CULL_FACE)
+        self.ctx.cull_face = "back"
         self.ctx.disable(self.ctx.CULL_FACE)
 
     def prepare_water(self):
