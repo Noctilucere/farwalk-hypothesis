@@ -27,6 +27,29 @@ namespace Farwalk.World
             ["wilds"] = 300, ["blackstone"] = 190, ["lostland"] = 200,
             ["silenthall"] = 185, ["mutezone"] = 195, ["mirror"] = 165,
         };
+
+        public static readonly Dictionary<string, string> RegionTitle = new()
+        {
+            ["wilds"] = "无名荒原", ["blackstone"] = "黑石祭址", ["lostland"] = "失落的世界",
+            ["silenthall"] = "无声钟塔", ["mutezone"] = "消音地带", ["mirror"] = "镜之境",
+        };
+
+        // 与 WorldGen.RegionWeights 完全一致的 argmax 判定 (硬边界, 不缝合)
+        public static string RegionAt(float x, float z)
+        {
+            string best = RegionOrder[0];
+            float bv = -1f;
+            foreach (var name in RegionOrder)
+            {
+                var (cx, cz) = RegionPos[name];
+                float rad = RegionRadius[name];
+                float d = MathF.Sqrt((x - cx) * (x - cx) + (z - cz) * (z - cz));
+                float v = 1f - Math3D.Clamp(d / (rad * 1.55f), 0f, 1f);
+                float s = v * v * (3f - 2f * v);
+                if (s > bv) { bv = s; best = name; }
+            }
+            return best;
+        }
     }
 
     public class WorldGen
@@ -250,7 +273,7 @@ namespace Farwalk.World
             GL.BufferData(BufferTarget.ElementArrayBuffer, idx.Count * 4, idx.ToArray(), BufferUsageHint.StaticDraw);
         }
 
-        public void Release(GL gl)
+        public void Release()
         {
             GL.DeleteBuffer(Vbo); GL.DeleteBuffer(Ibo);
             if (Vao > 0) GL.DeleteVertexArray(Vao);

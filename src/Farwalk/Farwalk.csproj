@@ -5,10 +5,17 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>Farwalk</AssemblyName>
+    <RootNamespace>Farwalk</RootNamespace>
+    <!-- UI 字形栅格化依赖 GDI+, 仅在 Windows 运行; 屏蔽平台兼容性分析警告 -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenTK" Version="4.8.2" />
+    <!-- 升级到修复 CVE-GHSA-rxg9-xrhp-64gj 的版本; GDI+ 字形栅格化仍仅在 Windows 运行 -->
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
   </ItemGroup>
 
 </Project>

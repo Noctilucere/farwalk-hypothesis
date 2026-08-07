@@ -135,6 +135,81 @@ namespace Farwalk.World
             return MeshData.Merge(parts);
         }
 
+        // 圆环 (躺平在 XZ 平面, 中心在原点)
+        public static MeshData Torus(float R, float r, int segU = 28, int segV = 10)
+        {
+            var v = new List<float>(); var ix = new List<uint>();
+            for (int i = 0; i <= segU; i++)
+            {
+                float u = i / (float)segU * Math3D.TAU;
+                float cu = MathF.Cos(u), su = MathF.Sin(u);
+                for (int j = 0; j <= segV; j++)
+                {
+                    float w = j / (float)segV * Math3D.TAU;
+                    float cw = MathF.Cos(w), sw = MathF.Sin(w);
+                    float x = (R + r * cw) * cu;
+                    float y = r * sw;
+                    float z = (R + r * cw) * su;
+                    v.Add(x); v.Add(y); v.Add(z);
+                    v.Add(cw * cu); v.Add(sw); v.Add(cw * su);
+                }
+            }
+            int rowV = segV + 1;
+            for (int i = 0; i < segU; i++)
+                for (int j = 0; j < segV; j++)
+                {
+                    uint a = (uint)(i * rowV + j), b = a + 1u;
+                    uint c = (uint)((i + 1) * rowV + j), d = c + 1u;
+                    ix.Add(a); ix.Add(c); ix.Add(b); ix.Add(b); ix.Add(c); ix.Add(d);
+                }
+            return new MeshData { Verts = v.ToArray(), Index = ix.ToArray(), Stride = 6 };
+        }
+
+        // 水平圆盘 (法线朝上)
+        public static MeshData Disc(float radius, int segs = 32)
+        {
+            var v = new List<float>(); var ix = new List<uint>();
+            v.Add(0); v.Add(0); v.Add(0); v.Add(0); v.Add(1); v.Add(0);
+            for (int i = 0; i <= segs; i++)
+            {
+                float a = i / (float)segs * Math3D.TAU;
+                v.Add(MathF.Cos(a) * radius); v.Add(0); v.Add(MathF.Sin(a) * radius);
+                v.Add(0); v.Add(1); v.Add(0);
+                if (i > 0) { ix.Add(0); ix.Add((uint)i); ix.Add((uint)(i + 1)); }
+            }
+            return new MeshData { Verts = v.ToArray(), Index = ix.ToArray(), Stride = 6 };
+        }
+
+        // 轴对齐立方体 (底面在 y=0)
+        public static MeshData Box(float sx, float sy, float sz)
+        {
+            float hx = sx * 0.5f, hz = sz * 0.5f;
+            var v = new List<float>(); var ix = new List<uint>();
+            (float, float, float)[] nrm = {
+                (0,0,1), (0,0,-1), (1,0,0), (-1,0,0), (0,1,0), (0,-1,0)
+            };
+            (float, float, float)[][] face = {
+                new[]{(-hx,0f,hz),(hx,0f,hz),(hx,sy,hz),(-hx,sy,hz)},
+                new[]{(hx,0f,-hz),(-hx,0f,-hz),(-hx,sy,-hz),(hx,sy,-hz)},
+                new[]{(hx,0f,hz),(hx,0f,-hz),(hx,sy,-hz),(hx,sy,hz)},
+                new[]{(-hx,0f,-hz),(-hx,0f,hz),(-hx,sy,hz),(-hx,sy,-hz)},
+                new[]{(-hx,sy,hz),(hx,sy,hz),(hx,sy,-hz),(-hx,sy,-hz)},
+                new[]{(-hx,0f,-hz),(hx,0f,-hz),(hx,0f,hz),(-hx,0f,hz)},
+            };
+            for (int f = 0; f < 6; f++)
+            {
+                uint b = (uint)(v.Count / 6);
+                foreach (var (px, py, pz) in face[f])
+                {
+                    v.Add(px); v.Add(py); v.Add(pz);
+                    v.Add(nrm[f].Item1); v.Add(nrm[f].Item2); v.Add(nrm[f].Item3);
+                }
+                ix.Add(b); ix.Add(b + 1); ix.Add(b + 2);
+                ix.Add(b); ix.Add(b + 2); ix.Add(b + 3);
+            }
+            return new MeshData { Verts = v.ToArray(), Index = ix.ToArray(), Stride = 6 };
+        }
+
         // 变换: 平移 + 旋转 (绕Y) + 缩放
         public static MeshData Transform(MeshData m, float tx, float ty, float tz,
             float rotX = 0, float rotY = 0, float rotZ = 0, float sx = 1, float sy = 1, float sz = 1)
